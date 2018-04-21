@@ -1,4 +1,5 @@
 import numpy as np
+from statsmodels.tsa.ar_model import AR
 
 def preprocess(df, start_date, training_end_date, testing_end_date = None, train_periods = None, ):
 
@@ -31,3 +32,32 @@ def preprocess(df, start_date, training_end_date, testing_end_date = None, train
 
     out = {'X_train':X_train,'y_train':y_train,'X_test':X_test,'y_test': y_test, 'train':train, 'test': test}
     return out
+
+
+def get_GPstats(m, data_dict):
+    pred = m.predict_y(data_dict['X_test'])
+    data_dict['test']['pred'] = pred[0]
+    MSE = get_MSE(pred[0] , data_dict['y_test'])
+    return data_dict, MSE
+
+
+def fit_AR(series, t_pred =12 ):
+    ar = AR(endog= series)
+    ar_fit = ar.fit(maxlag=1)
+    pred = ar.predict(params= ar_fit.params, end=t_pred)
+    return pred
+
+def get_MSE(pred,y_test):
+    MSE = ((np.square(pred - y_test)).sum()) / len(pred)
+    return MSE
+
+def AR_pipe(series, y_test):
+    t_pred = len(y_test)
+    pred = fit_AR(series.values, t_pred=t_pred)
+    return get_MSE(pred, y_test.values)
+
+def run_AR(data_dict):
+    ar_df = data_dict['train'].groupby(['DATETIME','GRID_SQUARE'])['COUNT'].sum().unstack()
+    ar_df_test = data_dict['test'].groupby(['DATETIME','GRID_SQUARE'])['COUNT'].sum().unstack()
+    grid_error = np.array([AR_pipe(ar_df[i],ar_df_test[i]) for i in ar_df])
+    return grid_error.sum()
