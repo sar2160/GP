@@ -15,4 +15,4 @@ def preprocess(df, start_date , training_end_date, testing_end_date = None):
     X_test = np.vstack([test.DATE_IND.values.ravel(), test.x_point.ravel(), test.y_point.ravel()]).T
     y_test = test.COUNT.values.reshape((len(test),1))
 
-    return X_train, y_train, X_test, y_test
+    return X_train, y_train, X_test, y_test, train, test
