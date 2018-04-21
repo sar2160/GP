@@ -10,14 +10,14 @@ def preprocess(df, start_date, training_end_date, testing_end_date = None, train
     if isinstance(training_end_date,int):
         start_idx = np.argwhere((index == start_date))[0][0]
         training_end_date = str(index[start_idx + training_end_date])
-        print(f'Training ends on: {training_end_date}')
+        print('Training ends on: {}'.format(training_end_date))
     train = df.loc[start_date:training_end_date].copy()
 
     if isinstance(testing_end_date,int):
         train_idx = np.argwhere((index == training_end_date))[0][0]
         testing_end_date = str(index[train_idx + testing_end_date])
         test = df.loc[training_end_date:testing_end_date].copy()
-        print(f'testing ends on: {testing_end_date}')
+        print('testing ends on: {}'.format(testing_end_date))
 
     elif testing_end_date:
         test = df.loc[training_end_date:testing_end_date].copy()
@@ -36,10 +36,9 @@ def preprocess(df, start_date, training_end_date, testing_end_date = None, train
 
 def get_GPstats(m, data_dict):
     pred = m.predict_y(data_dict['X_test'])
-    data_dict['test']['pred'] = pred[0]
-    MSE = get_MSE(pred[0] , data_dict['y_test'])
-    return data_dict, MSE
-
+    data_dict['test']['error'] = pred[0] -data_dict['y_test']
+    MSE = data_dict['test'].groupby("DATETIME")['error'].mean()
+    return MSE
 
 def fit_AR(series, t_pred =12 ):
     ar = AR(endog= series)
@@ -54,10 +53,15 @@ def get_MSE(pred,y_test):
 def AR_pipe(series, y_test):
     t_pred = len(y_test)
     pred = fit_AR(series.values, t_pred=t_pred)
-    return get_MSE(pred, y_test.values)
+    return pred - y_test.values
 
 def run_AR(data_dict):
     ar_df = data_dict['train'].groupby(['DATETIME','GRID_SQUARE'])['COUNT'].sum().unstack()
     ar_df_test = data_dict['test'].groupby(['DATETIME','GRID_SQUARE'])['COUNT'].sum().unstack()
-    grid_error = np.array([AR_pipe(ar_df[i],ar_df_test[i]) for i in ar_df])
-    return grid_error.sum()
+
+    grid_error = pd.DataFrame()
+    for c in ar_df:
+        c = int(c)
+        grid_error[c] =  np.array(AR_pipe(ar_df[c],ar_df_test[c]))
+
+    return grid_error.apply(np.square, axis = 1).sum(axis = 1) / len(grid_error.columns)
