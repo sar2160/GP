@@ -33,9 +33,9 @@ def Poisson_Model(X, y, use_priors = False, e_s = 0, period = 12):
                 m.kern.periodic.lengthscales.prior = normal_prior
 
             return m
-        
+
 def Matern32_Model(X, y, use_priors = False, e_s = 0, period = 12 ):
-    
+
     with gpflow.defer_build():
 
         like = gpflow.likelihoods.Poisson(binsize = e_s)
