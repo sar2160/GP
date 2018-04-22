@@ -66,3 +66,34 @@ def Matern32_Model(X, y, use_priors = False, e_s = 0, period = 12 ):
             m.kern.safematern32.lengthscales.prior = normal_prior
 
     return m
+
+def LongTerm_Model(X, y, use_priors = False, e_s = 0, period = 12):
+
+    with gpflow.defer_build():
+
+            like = gpflow.likelihoods.Poisson(binsize = e_s)
+
+            kern_t_effect = gpflow.kernels.RBF(1, active_dims=[0], name='time_effect')
+            ## Will have to write custom kernel to match Flaxman 2014
+            kern_p_effect = gpflow.kernels.Periodic(1, active_dims=[0], name = 'periodic_effect')
+            kern_l_effect = gpflow.kernels.Linear(1, active_dims = [0], name = 'linear_effect')
+
+            full_kern =  kern_t_effect + kern_s_effect + kern_l_effect
+
+
+            m = gpflow.models.VGP(X, y, full_kern,  likelihood = like, mean_function = None)
+
+            m.kern.periodic.period = period
+            m.kern.periodic.period.trainable = True
+
+            normal_prior = gpflow.priors.Gaussian(mu = 0 , var = 1)
+
+            if use_priors:
+                m.kern.rbf.variance.prior    = normal_prior
+                m.kern.periodic.variance.prior = normal_prior
+                m.kern.linear.variance.prior    = normal_prior
+
+                m.kern.rbf.lengthscales.prior = normal_prior
+                m.kern.periodic.lengthscales.prior = normal_prior
+
+            return m
