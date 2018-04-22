@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from statsmodels.tsa.ar_model import AR
 
 def preprocess(df, start_date, training_end_date, testing_end_date = None, train_periods = None, ):
@@ -34,11 +35,11 @@ def preprocess(df, start_date, training_end_date, testing_end_date = None, train
     return out
 
 
-def get_GPstats(m, data_dict):
+def pred_GP(m, data_dict):
     pred = m.predict_y(data_dict['X_test'])
-    data_dict['test']['error'] = pred[0] -data_dict['y_test']
-    MSE = data_dict['test'].groupby("DATETIME")['error'].mean()
-    return MSE
+    data_dict['test']['gp_pred'] = pred[0]
+    data_dict['test']['gp_sq_error'] = np.square(pred[0] - data_dict['y_test'])
+    print('added gp pred and error to test')
 
 def fit_AR(series, t_pred =12 ):
     ar = AR(endog= series)
@@ -63,5 +64,5 @@ def run_AR(data_dict):
     for c in ar_df:
         c = int(c)
         grid_error[c] =  np.array(AR_pipe(ar_df[c],ar_df_test[c]))
-
+    grid_error.index = data_dict['test'].index.unique()
     return grid_error.apply(np.square, axis = 1).sum(axis = 1) / len(grid_error.columns)
