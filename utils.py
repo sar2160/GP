@@ -44,7 +44,8 @@ def preprocess(df, start_date, training_end_date, testing_end_date = None, train
 def pred_GP(m, data_dict):
     pred = m.predict_y(data_dict['X_test'])
     data_dict['test']['gp_pred'] = np.round(pred[0],0)
-    data_dict['test']['gp_sq_error'] = np.square(np.round(pred[0],0) - data_dict['y_test'])
+    data_dict['test']['gp_error'] = np.round(pred[0],0) - data_dict['y_test']
+    data_dict['test']['gp_sq_error'] = np.square(data_dict['test']['gp_error'])
     print('added gp pred and error to test')
 
 def fit_AR(series, t_pred =12 ):
@@ -62,9 +63,14 @@ def AR_pipe(series, y_test):
     pred = np.round(fit_AR(series.values, t_pred=t_pred),0)
     return pred - y_test.values
 
-def run_AR(data_dict):
-    ar_df = data_dict['train'].groupby(['DATETIME','GRID_SQUARE'])['COUNT'].sum().unstack()
-    ar_df_test = data_dict['test'].groupby(['DATETIME','GRID_SQUARE'])['COUNT'].sum().unstack()
+def run_AR(data_dict, group_by = ['DATETIME','GRID_SQUARE']):
+    if group_by == None:
+        ar_df = data_dict['test']['COUNT']
+        ar_df_test = data_dict['test']['COUNT']
+        return AR_pipe(ar_df, ar_df_test)
+        
+    ar_df = data_dict['train'].groupby(group_by)['COUNT'].sum().unstack()
+    ar_df_test = data_dict['test'].groupby(group_by)['COUNT'].sum().unstack()
 
     grid_error = pd.DataFrame()
     for c in ar_df:

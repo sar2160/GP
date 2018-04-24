@@ -46,7 +46,7 @@ def Matern32_Model(X, y, use_priors = False, e_s = 0, period = 12 ):
         kern_p_effect = gpflow.kernels.Periodic(1, active_dims=[0], name = 'periodic_effect')
         kern_st_effect = gpflow.kernels.Product([kern_s_effect ,kern_t_effect])
 
-        full_kern =  kern_t_effect + kern_s_effect + kern_p_effect #+ kern_st_effect
+        full_kern =  kern_t_effect + kern_s_effect + kern_p_effect + kern_st_effect
 
         m = gpflow.models.VGP(X, y, full_kern,  likelihood = like, mean_function = None)
 
@@ -95,7 +95,7 @@ def LongTerm_Model(X, y, use_priors = False, e_s = 0, period = 12):
                 
                 m.kern.rbf.lengthscales.prior = Tprior
                 m.kern.periodic.lengthscales.prior = Tprior
-
+                
             return m
 
         
