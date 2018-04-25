@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.ar_model import AR
 
-def preprocess(df, start_date, training_end_date, testing_end_date = None, train_periods = None, ):
+def preprocess(df, start_date, training_end_date, testing_end_date = None, train_periods = None, time_only = False):
 
     from numpy import vstack
     df = df.set_index('DATETIME')
@@ -24,12 +24,18 @@ def preprocess(df, start_date, training_end_date, testing_end_date = None, train
         test = df.loc[training_end_date:testing_end_date].copy()
     else:
         test = df.loc[training_end_date:].copy()
-
-    X_train = np.vstack([train.DATE_IND.values.ravel(), train.x_point.ravel(), train.y_point.ravel()]).T
+    
     y_train = train.COUNT.values.reshape((len(train),1))
 
-    X_test = np.vstack([test.DATE_IND.values.ravel(), test.x_point.ravel(), test.y_point.ravel()]).T
     y_test = test.COUNT.values.reshape((len(test),1))
+    
+    if time_only:
+            X_train = np.vstack([train.DATE_IND.values.ravel()]).T
+            X_test = np.vstack([test.DATE_IND.values.ravel()]).T
+    else:
+            X_train = np.vstack([train.DATE_IND.values.ravel(), train.x_point.ravel(), train.y_point.ravel()]).T
+            X_test = np.vstack([test.DATE_IND.values.ravel(), test.x_point.ravel(), test.y_point.ravel()]).T
+
 
     out = {'X_train':X_train,'y_train':y_train,'X_test':X_test,'y_test': y_test, 'train':train, 'test': test}
     return out
@@ -37,15 +43,16 @@ def preprocess(df, start_date, training_end_date, testing_end_date = None, train
 
 def pred_GP(m, data_dict):
     pred = m.predict_y(data_dict['X_test'])
-    data_dict['test']['gp_pred'] = pred[0]
-    data_dict['test']['gp_sq_error'] = np.square(pred[0] - data_dict['y_test'])
+    data_dict['test']['gp_pred'] = np.round(pred[0],0)
+    data_dict['test']['gp_error'] = np.round(pred[0],0) - data_dict['y_test']
+    data_dict['test']['gp_sq_error'] = np.square(data_dict['test']['gp_error'])
     print('added gp pred and error to test')
 
 def fit_AR(series, t_pred =12 ):
     ar = AR(endog= series)
     ar_fit = ar.fit(maxlag=1)
     pred = ar.predict(params= ar_fit.params, end=t_pred)
-    return pred
+    return np.round(pred,0)
 
 def get_MSE(pred,y_test):
     MSE = ((np.square(pred - y_test)).sum()) / len(pred)
@@ -53,12 +60,17 @@ def get_MSE(pred,y_test):
 
 def AR_pipe(series, y_test):
     t_pred = len(y_test)
-    pred = fit_AR(series.values, t_pred=t_pred)
+    pred = np.round(fit_AR(series.values, t_pred=t_pred),0)
     return pred - y_test.values
 
-def run_AR(data_dict):
-    ar_df = data_dict['train'].groupby(['DATETIME','GRID_SQUARE'])['COUNT'].sum().unstack()
-    ar_df_test = data_dict['test'].groupby(['DATETIME','GRID_SQUARE'])['COUNT'].sum().unstack()
+def run_AR(data_dict, group_by = ['DATETIME','GRID_SQUARE']):
+    if group_by == None:
+        ar_df = data_dict['test']['COUNT']
+        ar_df_test = data_dict['test']['COUNT']
+        return AR_pipe(ar_df, ar_df_test)
+        
+    ar_df = data_dict['train'].groupby(group_by)['COUNT'].sum().unstack()
+    ar_df_test = data_dict['test'].groupby(group_by)['COUNT'].sum().unstack()
 
     grid_error = pd.DataFrame()
     for c in ar_df:
