@@ -61,11 +61,11 @@ def get_MSE(pred,y_test):
 def AR_pipe(series, y_test):
     t_pred = len(y_test)
     pred = np.round(fit_AR(series.values, t_pred=t_pred),0)
-    return pred - y_test.values
+    return pred , pred - y_test.values
 
 def run_AR(data_dict, group_by = ['DATETIME','GRID_SQUARE']):
     if group_by == None:
-        ar_df = data_dict['test']['COUNT']
+        ar_df = data_dict['train']['COUNT']
         ar_df_test = data_dict['test']['COUNT']
         return AR_pipe(ar_df, ar_df_test)
         
@@ -75,6 +75,6 @@ def run_AR(data_dict, group_by = ['DATETIME','GRID_SQUARE']):
     grid_error = pd.DataFrame()
     for c in ar_df:
         c = int(c)
-        grid_error[c] =  np.array(AR_pipe(ar_df[c],ar_df_test[c]))
+        grid_error[c] =  np.array(AR_pipe(ar_df[c],ar_df_test[c])[1])
     grid_error.index = data_dict['test'].index.unique()
     return grid_error.apply(np.square, axis = 1).sum(axis = 1) / len(grid_error.columns)
