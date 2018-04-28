@@ -25,6 +25,11 @@ def preprocess(df, start_date, training_end_date, testing_end_date = None, train
     else:
         test = df.loc[training_end_date:].copy()
     
+    test.drop(training_end_date, inplace = True) # drop the first week still in training period
+    
+    reindex = train.DATE_IND.min()
+    train.DATE_IND -= reindex
+    test.DATE_IND  -=  reindex
     y_train = train.COUNT.values.reshape((len(train),1))
 
     y_test = test.COUNT.values.reshape((len(test),1))
