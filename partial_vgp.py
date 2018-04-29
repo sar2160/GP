@@ -34,7 +34,26 @@ class PartialVGP(VGP):
         kern = self.kern.rbf
         return self._build_predict(Xnew, full_cov=full_cov, K_part=kern)
     
+    @autoflow((settings.float_type, [None, None]))
+    def predict_f_rbf1(self, Xnew, full_cov=False):
+        kern = self.kern.rbf_1
+        return self._build_predict(Xnew, full_cov=full_cov, K_part=kern)
     
+    @autoflow((settings.float_type, [None, None]))
+    def predict_f_rbf2(self, Xnew, full_cov=False):
+        kern = self.kern.rbf_2
+        return self._build_predict(Xnew, full_cov=full_cov, K_part=kern)
+    
+    @autoflow((settings.float_type, [None, None]))
+    def predict_f_safematern(self, Xnew, full_cov=False):
+        kern = self.kern.safematern32
+        return self._build_predict(Xnew, full_cov=full_cov, K_part=kern)
+    
+    @autoflow((settings.float_type, [None, None]))
+    def predict_f_product(self, Xnew, full_cov=False):
+        kern = self.kern.product
+        return self._build_predict(Xnew, full_cov=full_cov, K_part=kern)
+     
     
 @name_scope()
 def my_conditional(Xnew, X, kern, f, *, full_cov=False, q_sqrt=None, white=False,K_part=None):

@@ -68,7 +68,7 @@ def Matern12_Model(X, y, use_priors = False, e_s = 0, period = 12 ):
 
     return m
 
-def SafeMatern32_Model(X, y, use_priors = False, e_s = 0, period = 12 ):
+def SafeMatern32_Model(X, y, use_priors = False, e_s = 0, period = 12 , partial=False):
 
     with gpflow.defer_build():
 
@@ -81,8 +81,11 @@ def SafeMatern32_Model(X, y, use_priors = False, e_s = 0, period = 12 ):
         kern_st_effect = gpflow.kernels.Product([kern_s_effect ,kern_t_effect])
 
         full_kern =  kern_t_effect + kern_s_effect + kern_p_effect + kern_st_effect
-
-        m = gpflow.models.VGP(X, y, full_kern,  likelihood = like, mean_function = None)
+        
+        if partial:
+            m = PartialVGP(X, y, full_kern,  likelihood = like, mean_function = None)
+        else:
+            m = gpflow.models.VGP(X, y, full_kern,  likelihood = like, mean_function = None)
 
         m.kern.periodic.period = period
         m.kern.periodic.period.trainable = True
@@ -199,7 +202,7 @@ def LongTermPartial_Model(X, y, use_priors = False, e_s = 0, period = 12):
             return m
 
         
-def Poisson_Model_T(X, y, use_priors = False, e_s = 0, period = 12):
+def Poisson_Model_T(X, y, use_priors = False, e_s = 0, period = 12, partial=False):
 
     with gpflow.defer_build():
 
@@ -213,8 +216,11 @@ def Poisson_Model_T(X, y, use_priors = False, e_s = 0, period = 12):
 
             full_kern =  kern_t_effect + kern_s_effect + kern_p_effect + kern_st_effect
 
+            if partial:
+                m = PartialVGP(X, y, full_kern,  likelihood = like, mean_function = None)
+            else:
+                m = gpflow.models.vgp(X, y, full_kern,  likelihood = like, mean_function = None)
 
-            m = gpflow.models.VGP(X, y, full_kern,  likelihood = like, mean_function = None)
 
             m.kern.periodic.period = period
             m.kern.periodic.period.trainable = False
@@ -257,4 +263,36 @@ def ST_Model(X, y, use_priors = False, e_s = 0):
                 m.kern.rbf_1.lengthscales.prior = t_prior
                 m.kern.rbf_2.lengthscales.prior = t_prior
 
+            return m
+        
+        
+def HMC_LongTerm_Model(X, y, use_priors = False, e_s = 0, period = 12):
+
+    with gpflow.defer_build():
+
+            like = gpflow.likelihoods.Poisson(binsize = e_s)
+
+            kern_t_effect = gpflow.kernels.RBF(1, active_dims=[0], name='time_effect')
+            ## Will have to write custom kernel to match Flaxman 2014
+            kern_p_effect = gpflow.kernels.Periodic(1, active_dims=[0], name = 'periodic_effect')
+            kern_l_effect = gpflow.kernels.Linear(1, active_dims = [0], name = 'linear_effect', variance = 1.0)
+
+            full_kern =  kern_t_effect + kern_p_effect + kern_l_effect
+
+
+            m = gpflow.models.GPMC(X, y, full_kern,  likelihood = like, mean_function = None, num_latent =0)
+
+            m.kern.periodic.period = period
+            m.kern.periodic.period.trainable = True
+
+            Tprior = gpflow.priors.StudentT(mean = 0 , scale = 1, deg_free = 4)
+            gamma  = gpflow.priors.Gamma(1., 1.)
+            if use_priors:
+                m.kern.rbf.variance.prior      = Tprior
+                m.kern.periodic.variance.prior = Tprior
+                m.kern.linear.variance.prior   = Tprior
+                
+                #m.kern.rbf.lengthscales.prior      = gamma
+                #m.kern.periodic.lengthscales.prior = gamma
+                
             return m
